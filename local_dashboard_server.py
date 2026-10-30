@@ -1,13 +1,19 @@
 # -*- coding: utf-8 -*-
 """Local-only dashboard bridge. No public bind; refresh only via same-origin POST."""
-import json, subprocess, sys, threading, webbrowser, os
+import json, subprocess, sys, threading, webbrowser, os, base64, hmac
+from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timedelta, time as dtime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parent
-OUT = Path(r'D:\egx\metals_all4_daily\PRICE_PATTERN_MATCHER')
+# Same default as pattern_matcher.py; REPORT_DIR may override only when both scripts agree.
+OUT = Path(os.getenv('REPORT_DIR', r'D:\egx\metals_all4_daily\PRICE_PATTERN_MATCHER'))
+PUBLIC = bool(os.getenv('PORT'))
+ACCESS_PASSWORD = os.getenv('DASHBOARD_PASSWORD', '')
+if PUBLIC and not ACCESS_PASSWORD:
+    raise RuntimeError('Set DASHBOARD_PASSWORD in Railway Variables to protect the public dashboard and its refresh endpoint')
 REPORT = OUT / 'PRICE_PATTERN_MATCHER.html'
 MANIFEST = OUT / 'SOURCES.json'
 LOCK = threading.Lock()
@@ -59,10 +65,30 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data if isinstance(data, bytes) else data.encode('utf-8'))
 
+    def _authorized(self):
+        if not ACCESS_PASSWORD: return True
+        value = self.headers.get('Authorization', '')
+        if not value.startswith('Basic '): return False
+        try:
+            creds = base64.b64decode(value[6:], validate=True).decode('utf-8')
+            user, password = creds.split(':', 1)
+        except (ValueError, UnicodeError):
+            return False
+        return hmac.compare_digest(user, 'trading') and hmac.compare_digest(password, ACCESS_PASSWORD)
+
+    def _require_auth(self):
+        if self._authorized(): return False
+        self.send_response(401)
+        self.send_header('WWW-Authenticate', 'Basic realm="Trading Similarity"')
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        return True
+
     def do_GET(self):
+        if self._require_auth(): return
         path = self.path.split('?', 1)[0]
         if path == '/api/status':
-            timeframe='1H' if 'timeframe=1H' in self.path else '1D'
+            timeframe='1H' if parse_qs(urlparse(self.path).query).get('timeframe') == ['1H'] else '1D'
             self.send(200, json.dumps(get_status(timeframe), ensure_ascii=False))
         elif path in ('/', '/index.html'):
             if not REPORT.is_file():
@@ -73,12 +99,16 @@ class Handler(BaseHTTPRequestHandler):
             self.send(404, 'Not found', 'text/plain')
 
     def do_POST(self):
+        if self._require_auth(): return
         if self.path != '/api/refresh':
             self.send(404, '{}'); return
         host = self.headers.get('Host', '')
         origin = self.headers.get('Origin', '')
-        if origin and origin != f'http://{host}':
-            self.send(403, '{"error":"Origin rejected"}'); return
+        # Browsers on Railway send HTTPS Origin through the reverse proxy.
+        if origin:
+            parsed = urlparse(origin)
+            if parsed.scheme not in ('http', 'https') or parsed.netloc != host:
+                self.send(403, '{"error":"Origin rejected"}'); return
         if not LOCK.acquire(blocking=False):
             self.send(409, '{"error":"Update already running"}'); return
         try:
@@ -118,8 +148,8 @@ def serve():
     host = "0.0.0.0" if os.environ.get("PORT") else "127.0.0.1"
     srv = ThreadingHTTPServer((host, port), Handler)
     address = f'http://127.0.0.1:{srv.server_port}/'
-    print('LOCAL DASHBOARD:', address, flush=True)
-    webbrowser.open(address)
+    print('TRADING DASHBOARD LISTENING:', host, srv.server_port, flush=True)
+    if not PUBLIC: webbrowser.open(address)
     try: srv.serve_forever()
     except KeyboardInterrupt: pass
     finally: srv.server_close()
