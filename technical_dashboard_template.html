@@ -1,0 +1,102 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>توافق إشارات المعادن الأربعة | Technical Consensus</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1727;--panel:#17283d;--line:#334b64;--fg:#e9f2fb;--muted:#a7bdd1;--accent:#ffd27a;--green:#7ee1af;--red:#ff9292}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px 'Segoe UI',Tahoma,Arial,sans-serif;line-height:1.65}main{max-width:1600px;margin:auto;padding:24px}h1{color:var(--accent);font-size:27px;margin:0 0 7px}h2{margin:0 0 12px;font-size:19px}p{margin:8px 0;color:var(--muted)}.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:17px;margin:14px 0}.controls{display:flex;flex-wrap:wrap;align-items:end;gap:12px}.field{display:flex;flex-direction:column;gap:6px;min-width:130px}.field.wide{min-width:285px}.field.small{min-width:110px}label{font-size:13px;color:#c5d8e8}input,select,button{font:inherit;border-radius:8px;border:1px solid #637b91;color:white;background:#102137;padding:9px 11px}input{width:120px}input[type=number]{direction:ltr;text-align:center}select{min-width:155px}button{cursor:pointer;background:#25648c;border-color:#5293bb;font-weight:700}button:hover{background:#367fae}.secondary{background:#233b54}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:10px}.stat{border:1px solid var(--line);border-radius:10px;padding:12px;background:#122237}.stat b{display:block;font-size:24px;color:var(--accent)}.stat span{font-size:12px;color:var(--muted)}.hint{font-size:13px}.ok{color:var(--green)}.bad{color:var(--red)}.warn{color:var(--accent)}.table-wrap{overflow:auto;max-height:69vh;border:1px solid var(--line);border-radius:9px}table{width:100%;border-collapse:collapse;min-width:1160px;white-space:nowrap}th,td{border-bottom:1px solid var(--line);padding:10px;text-align:center}th{background:#24415d;position:sticky;top:0;cursor:pointer}tr:hover td{background:#22384f}.long{color:var(--green);font-weight:700}.short{color:var(--red);font-weight:700}.foot{font-size:12px;padding-bottom:20px}#msg{color:var(--accent);min-height:22px}.badge{display:inline-block;background:#264a5f;padding:2px 10px;border-radius:99px}#params{display:flex;flex-wrap:wrap;gap:12px}input[type=checkbox]{width:18px;height:18px} .checkboxline{display:flex;align-items:center;gap:7px}.bar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}.subheading{margin-top:22px}
+</style></head><body><main>
+<h1>توافق مؤشرات التحليل الفني — الذهب والفضة والبلاتين والبلاديوم</h1>
+<p>اختاري المؤشر وشروطه، وهنبحث عن الأيام التي أعطت فيها <strong>المعادن الأربعة</strong> إشارة <span class="long">LONG</span> أو <span class="short">SHORT</span> متطابقة في نفس الجلسة. غيري عدد الجلسات لقياس أقصى عائد وصل له السعر <strong>خلال الفترة</strong>، وليس عند نهايتها.</p>
+<div class="panel">
+<div class="controls">
+<div class="field wide"><label for="indicator">مؤشر التحليل الفني</label><select id="indicator">
+<option value="ema_cross">EMA Crossover — تقاطع المتوسط الأسي</option>
+<option value="sma_cross">SMA Crossover — تقاطع المتوسط البسيط</option>
+<option value="macd">MACD — تقاطع خط الإشارة</option>
+<option value="cci">CCI — الخروج من مناطق التشبع</option>
+<option value="stoch">Stochastic — تقاطع داخل مناطق التشبع</option>
+<option value="rsi">RSI — اختراق مستوى 50</option>
+<option value="bb">Bollinger Bands — اختراق النطاق</option>
+<option value="donchian">Donchian — اختراق القمة/القاع السابق</option>
+<option value="roc">ROC — عبور الصفر</option>
+<option value="williams">Williams %R — الخروج من التشبع</option>
+</select></div>
+<div class="field small"><label for="horizon">أقصى عائد خلال (جلسات)</label><input type="number" id="horizon" min="1" max="500" value="10" step="1"></div>
+<div class="field"><label for="direction">الاتجاه</label><select id="direction"><option value="BOTH">LONG + SHORT</option><option value="LONG">LONG فقط</option><option value="SHORT">SHORT فقط</option></select></div>
+<div class="field"><label for="mode">شرط التوافق</label><select id="mode"><option value="event">إشارة جديدة للأربعة نفس اليوم</option><option value="state">الأربعة في نفس الاتجاه (حالة)</option></select></div>
+<div class="field"><label for="cooldown">فاصل الإشارات (جلسة)</label><input id="cooldown" type="number" min="0" max="500" value="0"></div>
+<div class="field"><button id="scan">احسب الإشارات</button></div>
+<div class="field"><button id="csv" class="secondary">تصدير CSV</button></div>
+</div>
+<div id="params" style="margin-top:13px"></div>
+<p id="description" class="hint"></p>
+<p id="msg"></p>
+</div>
+<div class="panel"><div id="summary" class="stats"></div><p id="availability" class="hint"></p></div>
+<div class="panel"><h2>متوسط أقصى عائد محتمل خلال الفترة — حسب LONG / SHORT</h2><div id="assetStats"></div></div>
+<div class="panel"><div class="bar"><h2>الإشارات التاريخية المتطابقة</h2><span class="badge" id="found">0 إشارة</span></div><p class="hint">يمكن الضغط على رؤوس الأعمدة للترتيب. أقصى عائد محتمل: LONG من أعلى High، وSHORT من أدنى Low خلال الجلسات التالية. ليس ربحًا محققًا بالضرورة.</p><div class="table-wrap"><table id="results"><thead><tr><th data-sort="date">التاريخ</th><th data-sort="direction">الإشارة</th><th data-sort="gold_close">الذهب</th><th data-sort="silver_close">الفضة</th><th data-sort="platinum_close">البلاتين</th><th data-sort="palladium_close">البلاديوم</th><th data-sort="gold_ret">أقصى ذهب %</th><th data-sort="silver_ret">أقصى فضة %</th><th data-sort="platinum_ret">أقصى بلاتين %</th><th data-sort="palladium_ret">أقصى بلاديوم %</th><th data-sort="allavg">متوسط أقصى العائد %</th></tr></thead><tbody></tbody></table></div></div>
+<div class="panel"><h2>تعريف الإشارة وطريقة الدراسة</h2><p id="rule"></p>
+<p class="foot">كل الإشارات محسوبة بمعلومات متاحة عند إغلاق يوم الإشارة؛ سعر الدخول المرجعي إغلاق يوم الإشارة. LONG يحسب (أعلى High خلال N جلسات − إغلاق الإشارة) ÷ إغلاق الإشارة، وSHORT يحسب (إغلاق الإشارة − أقل Low خلال N جلسات) ÷ إغلاق الإشارة. هذا أقصى ربح نظري متاح داخل النافذة لكل معدن على حدة، وقد يتطلب خروجًا مثاليًا غير معروف مسبقًا؛ لا يعني تحقق ربح بالفعل ولا أن قمم/قيعان المعادن الأربعة حدثت في نفس الوقت. لا تشمل فروق الأسعار والعمولات والانزلاق. الإشارات المتكررة بفاصل قصير قد تتداخل عوائدها. التداول والتوقيت اليومي لمزودي بيانات المعادن قد يختلف. لا تُملأ جلسات مفقودة أو أسعار غير موجودة، ونستخدم تاريخًا مشتركًا متطابقًا للأربعة؛ لذلك عدد الجلسات هو عدد الجلسات المشتركة وليس أيام التقويم. لو لم تتوفر جلسات مستقبلية كافية تعرض النتيجة فارغة ويُستبعد الحدث من المتوسط.</p>
+</div>
+</main><script>
+'use strict';
+const RAW=/*__METALS_PAYLOAD__*/null;
+const names=['GOLD','SILVER','PLATINUM','PALLADIUM'];
+const labels={GOLD:'الذهب',SILVER:'الفضة',PLATINUM:'البلاتين',PALLADIUM:'البلاديوم'};
+const defs={
+ema_cross:{text:'LONG عندما EMA السريع يعبر أعلى EMA البطيء، SHORT عند عبوره لأسفل.',p:[['fast','السريع',12,2,200],['slow','البطيء',26,3,400]]},
+sma_cross:{text:'LONG عندما SMA السريع يعبر أعلى SMA البطيء، SHORT عند عبوره لأسفل.',p:[['fast','السريع',20,2,200],['slow','البطيء',50,3,400]]},
+macd:{text:'LONG عند عبور MACD أعلى خط الإشارة، SHORT عند العبور لأسفل.',p:[['fast','EMA السريع',12,2,100],['slow','EMA البطيء',26,3,200],['signal','خط الإشارة',9,2,100]]},
+cci:{text:'LONG عند عودة CCI صعودًا فوق -100، SHORT عند هبوطه أسفل +100.',p:[['period','الفترة',20,3,200],['level','مستوى التشبع',100,50,250]]},
+stoch:{text:'LONG عندما %K يعبر %D لأعلى وكان %K السابق دون حد التشبع السفلي؛ SHORT عندما يعبر لأسفل وكان %K السابق فوق حد التشبع العلوي.',p:[['period','K فترة',14,3,100],['smooth','تنعيم K',3,1,50],['d','D فترة',3,1,50],['low','تشبع سفلي',20,1,49],['high','تشبع علوي',80,51,99]]},
+rsi:{text:'LONG عبور RSI أعلى مستوى 50، SHORT عبوره أسفل 50.',p:[['period','الفترة',14,3,200],['level','مستوى العبور',50,20,80]]},
+bb:{text:'LONG إغلاق أعلى الحد العلوي لبولينجر، SHORT إغلاق أدنى الحد السفلي. النطاق يُحسب من بيانات اليوم، والعبور يشترط أن إغلاق الأمس لم يكن خارج نطاق الأمس.',p:[['period','الفترة',20,5,200],['mult','مضاعف الانحراف ×10',20,5,40]]},
+donchian:{text:'LONG اختراق الإغلاق أعلى أعلى High خلال N جلسات سابقة، SHORT أدنى أدنى Low من N جلسات سابقة (من غير اليوم الحالي).',p:[['period','الفترة',20,2,250]]},
+roc:{text:'LONG تحوّل ROC من ≤0 إلى >0، SHORT من ≥0 إلى <0.',p:[['period','الفترة',12,2,200]]},
+williams:{text:'LONG عند صعود Williams %R فوق -80، SHORT عند هبوطه أسفل -20.',p:[['period','الفترة',14,3,200],['low','خروج من التشبع السفلي',80,51,95],['high','خروج من التشبع العلوي',20,5,49]]}
+};
+const $=id=>document.getElementById(id);
+function num(x){return x===null||x===undefined||!Number.isFinite(x)?'—':x.toFixed(3)}
+function pct(x){return x===null||!Number.isFinite(x)?'—':(x>0?'+':'')+x.toFixed(3)}
+function avg(v){let a=v.filter(Number.isFinite);return a.length?a.reduce((x,y)=>x+y,0)/a.length:null}
+function sma(x,n){let out=Array(x.length).fill(null),sum=0;for(let i=0;i<x.length;i++){sum+=x[i]??0;if(i>=n)sum-=x[i-n]??0;if(i>=n-1)out[i]=sum/n;}return out}
+function smanull(x,n){let out=Array(x.length).fill(null),sum=0,bad=0;for(let i=0;i<x.length;i++){if(x[i]===null)bad++;else sum+=x[i];if(i>=n){if(x[i-n]===null)bad--;else sum-=x[i-n]}if(i>=n-1&&!bad)out[i]=sum/n;}return out}
+function ema(x,n){let o=Array(x.length).fill(null),seed=0,count=0,previous=null,k=2/(n+1);for(let i=0;i<x.length;i++){const v=x[i];if(v===null){previous=null;seed=0;count=0;continue}if(previous===null){seed+=v;count++;if(count===n){previous=seed/n;o[i]=previous}}else{previous=v*k+previous*(1-k);o[i]=previous}}return o}
+function cross(a,b){let long=Array(a.length).fill(false),short=Array(a.length).fill(false),bull=Array(a.length).fill(false),bear=Array(a.length).fill(false);for(let i=1;i<a.length;i++){if([a[i],a[i-1],b[i],b[i-1]].some(x=>x===null||!Number.isFinite(x)))continue;long[i]=a[i]>b[i]&&a[i-1]<=b[i-1];short[i]=a[i]<b[i]&&a[i-1]>=b[i-1];bull[i]=a[i]>b[i];bear[i]=a[i]<b[i]}return {long,short,bull,bear}}
+function fixedCross(x,level){return cross(x,Array(x.length).fill(level))}
+function stdev(x,n,mean){let out=Array(x.length).fill(null);for(let i=n-1;i<x.length;i++){let v=0;for(let j=i-n+1;j<=i;j++)v+=(x[j]-mean[i])**2;out[i]=Math.sqrt(v/n)}return out}
+function compute(d,ind,p){let c=d.close,h=d.high,l=d.low,n=c.length,z=Array(n).fill(false),r;
+if(ind==='ema_cross'||ind==='sma_cross'){if(p.fast>=p.slow)throw Error('المتوسط السريع لازم يكون أصغر من البطيء');let f=ind==='ema_cross'?ema(c,p.fast):sma(c,p.fast),s=ind==='ema_cross'?ema(c,p.slow):sma(c,p.slow);return cross(f,s)}
+if(ind==='macd'){if(p.fast>=p.slow)throw Error('EMA السريع لازم يكون أصغر من البطيء');let f=ema(c,p.fast),s=ema(c,p.slow),dif=f.map((x,i)=>x===null||s[i]===null?null:x-s[i]),sig=ema(dif,p.signal);return cross(dif,sig)}
+if(ind==='cci'){let tp=c.map((x,i)=>(h[i]+l[i]+x)/3),ma=sma(tp,p.period),cc=Array(n).fill(null);for(let i=p.period-1;i<n;i++){let md=0;for(let j=i-p.period+1;j<=i;j++)md+=Math.abs(tp[j]-ma[i]);md/=p.period;cc[i]=md?((tp[i]-ma[i])/(.015*md)):0}r={long:z.slice(),short:z.slice(),bull:z.slice(),bear:z.slice()};for(let i=1;i<n;i++){if(cc[i]===null||cc[i-1]===null)continue;r.long[i]=cc[i]>-p.level&&cc[i-1]<=-p.level;r.short[i]=cc[i]<p.level&&cc[i-1]>=p.level;r.bull[i]=cc[i]>0;r.bear[i]=cc[i]<0}return r}
+if(ind==='stoch'){let k=Array(n).fill(null);for(let i=p.period-1;i<n;i++){let max=-Infinity,min=Infinity;for(let j=i-p.period+1;j<=i;j++){max=Math.max(max,h[j]);min=Math.min(min,l[j])}k[i]=max===min?50:100*(c[i]-min)/(max-min)}let ks=smanull(k,p.smooth),ds=smanull(ks,p.d),res=cross(ks,ds);for(let i=1;i<n;i++){res.long[i]=res.long[i]&&ks[i-1]!==null&&ks[i-1]<p.low;res.short[i]=res.short[i]&&ks[i-1]!==null&&ks[i-1]>p.high;res.bull[i]=res.bull[i]&&ks[i]<50;res.bear[i]=res.bear[i]&&ks[i]>50}return res}
+if(ind==='rsi'){let v=Array(n).fill(null),g=0,loss=0;if(n>p.period){for(let i=1;i<=p.period;i++){let dx=c[i]-c[i-1];g+=Math.max(dx,0);loss+=Math.max(-dx,0)}g/=p.period;loss/=p.period;v[p.period]=loss===0?(g===0?50:100):100-100/(1+g/loss);for(let i=p.period+1;i<n;i++){let dx=c[i]-c[i-1];g=(g*(p.period-1)+Math.max(dx,0))/p.period;loss=(loss*(p.period-1)+Math.max(-dx,0))/p.period;v[i]=loss===0?(g===0?50:100):100-100/(1+g/loss)}}return fixedCross(v,p.level)}
+if(ind==='bb'){let ma=sma(c,p.period),sd=stdev(c,p.period,ma),up=ma.map((x,i)=>x===null?null:x+(p.mult/10)*sd[i]),dn=ma.map((x,i)=>x===null?null:x-(p.mult/10)*sd[i]);r={long:z.slice(),short:z.slice(),bull:z.slice(),bear:z.slice()};for(let i=1;i<n;i++){if(up[i]===null||up[i-1]===null)continue;r.long[i]=c[i]>up[i]&&c[i-1]<=up[i-1];r.short[i]=c[i]<dn[i]&&c[i-1]>=dn[i-1];r.bull[i]=c[i]>up[i];r.bear[i]=c[i]<dn[i]}return r}
+if(ind==='donchian'){r={long:z.slice(),short:z.slice(),bull:z.slice(),bear:z.slice()};for(let i=p.period;i<n;i++){let max=-Infinity,min=Infinity;for(let j=i-p.period;j<i;j++){max=Math.max(max,h[j]);min=Math.min(min,l[j])}r.long[i]=c[i]>max;r.short[i]=c[i]<min;r.bull[i]=r.long[i];r.bear[i]=r.short[i]}return r}
+if(ind==='roc'){let x=c.map((v,i)=>i<p.period?null:100*(v/c[i-p.period]-1));return fixedCross(x,0)}
+if(ind==='williams'){let w=Array(n).fill(null);for(let i=p.period-1;i<n;i++){let max=-Infinity,min=Infinity;for(let j=i-p.period+1;j<=i;j++){max=Math.max(max,h[j]);min=Math.min(min,l[j])}w[i]=max===min?-50:-100*(max-c[i])/(max-min)}r={long:z.slice(),short:z.slice(),bull:z.slice(),bear:z.slice()};for(let i=1;i<n;i++){if(w[i]===null||w[i-1]===null)continue;r.long[i]=w[i]>-p.low&&w[i-1]<=-p.low;r.short[i]=w[i]<-p.high&&w[i-1]>=-p.high;r.bull[i]=w[i]>-50;r.bear[i]=w[i]<-50}return r}
+throw Error('Unknown indicator')}
+function params(){let key=$('indicator').value,def=defs[key],out={};for(let [id,label,defaultV,min,max] of def.p){let el=$('p_'+id);let v=Number(el.value);if(!Number.isInteger(v)||v<min||v>max)throw Error(`${label}: اختاري رقم بين ${min} و ${max}`);out[id]=v}if('low' in out&&'high' in out&&key==='stoch'&&out.low>=out.high)throw Error('الحد السفلي لازم يكون أقل من العلوي');return out}
+function renderParams(){let def=defs[$('indicator').value];$('params').innerHTML=def.p.map(([id,label,defaultV,min,max])=>`<div class="field small"><label for="p_${id}">${label}</label><input id="p_${id}" type="number" min="${min}" max="${max}" step="1" value="${defaultV}"></div>`).join('');$('description').textContent=def.text;$('rule').textContent=def.text}
+let cached=[],state=null,order={key:'date',dir:-1};
+function getHorizon(){let n=Number($('horizon').value);if(!Number.isInteger(n)||n<1||n>500)throw Error('عدد الجلسات لازم يكون بين 1 و500');return n}
+function findSignals(){let ind=$('indicator').value,p=params(),mode=$('mode').value,dir=$('direction').value,cooldown=Number($('cooldown').value);if(!Number.isInteger(cooldown)||cooldown<0||cooldown>500)throw Error('الفاصل بين 0 و500 جلسة');const byAsset=names.map(a=>compute(RAW.assets[a],ind,p)),n=RAW.dates.length,rows=[];let lastIndex=-1;for(let i=0;i<n;i++){let longs=byAsset.every(x=>mode==='event'?x.long[i]:x.bull[i]),shorts=byAsset.every(x=>mode==='event'?x.short[i]:x.bear[i]);let direction=longs?'LONG':shorts?'SHORT':null;if(!direction||dir!=='BOTH'&&dir!==direction)continue;if(i-lastIndex<=cooldown)continue;rows.push({i,date:RAW.dates[i],direction});lastIndex=i;}cached=rows;state={ind,p,mode,dir,cooldown};updateTable();$('msg').textContent=`تم فحص ${n.toLocaleString('en-US')} جلسة مشتركة. ${mode==='event'?'إشارات جديدة في نفس اليوم':'اتفاق حالة المؤشر (قد يستمر أيامًا)'}؛ بدون استخدام RS.`}
+function rowsWithReturns(){let h=getHorizon(),n=RAW.dates.length;return cached.map(x=>{let y={...x};let a=[];for(let name of names){const d=RAW.assets[name];y[name.toLowerCase()+'_close']=d.close[x.i];let r=null,hit=null;
+if(x.i+h<n){let extreme=x.direction==='LONG'?-Infinity:Infinity;for(let j=x.i+1;j<=x.i+h;j++){let v=x.direction==='LONG'?d.high[j]:d.low[j];if((x.direction==='LONG'&&v>extreme)||(x.direction==='SHORT'&&v<extreme)){extreme=v;hit=j-x.i}}r=100*(extreme/d.close[x.i]-1)*(x.direction==='LONG'?1:-1)}
+y[name.toLowerCase()+'_ret']=r;y[name.toLowerCase()+'_hit']=hit;if(r!==null)a.push(r)}y.allavg=a.length===names.length?avg(a):null;return y})}
+let visible=[];
+function updateTable(){if(!state)return;let rows=rowsWithReturns();let count=rows.length;let valid=rows.filter(x=>x.allavg!==null);let plus=valid.filter(x=>x.allavg>0).length;let mean=avg(valid.map(x=>x.allavg));let long=rows.filter(x=>x.direction==='LONG').length,short=rows.filter(x=>x.direction==='SHORT').length;
+let cards=[['إشارات متطابقة',count],['LONG',long],['SHORT',short],['حالات بنافذة مكتملة',valid.length],['نسبة أقصى حركة مواتية',valid.length?(100*plus/valid.length).toFixed(1)+'%':'—'],['متوسط أقصى حركة نظرية',mean===null?'—':pct(mean)+'%']];$('summary').innerHTML=cards.map(([k,v])=>`<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('');$('found').textContent=count+' إشارة';let h=getHorizon();$('availability').textContent=`الفترة: ${RAW.dates[0]} ← ${RAW.dates.at(-1)} | أقصى حركة خلال ${h} جلسة مشتركة تالية | نتائج ناقصة عند نهاية التاريخ لا تدخل المتوسط`;
+let t=`<div class="table-wrap"><table><thead><tr><th>المعدن</th><th>عدد النتائج</th><th>نسبة النجاح</th><th>متوسط أقصى العائد المحتمل</th><th>متوسط LONG</th><th>متوسط SHORT</th></tr></thead><tbody>`;for(let a of names){let key=a.toLowerCase()+'_ret',rv=rows.map(x=>x[key]).filter(x=>x!==null),lg=rows.filter(x=>x.direction==='LONG').map(x=>x[key]).filter(x=>x!==null),sh=rows.filter(x=>x.direction==='SHORT').map(x=>x[key]).filter(x=>x!==null);t+=`<tr><td>${labels[a]}</td><td>${rv.length}</td><td>${rv.length?(100*rv.filter(x=>x>0).length/rv.length).toFixed(1)+'%':'—'}</td><td>${pct(avg(rv))}%</td><td>${pct(avg(lg))}%</td><td>${pct(avg(sh))}%</td></tr>`}t+='</tbody></table></div>';$('assetStats').innerHTML=t;
+let k=order.key,sg=order.dir;rows.sort((a,b)=>{let av=a[k],bv=b[k];if(av===null)return 1;if(bv===null)return -1;return (typeof av==='number'&&typeof bv==='number'?av-bv:String(av).localeCompare(String(bv)))*sg});visible=rows;
+$('results').tBodies[0].innerHTML=rows.map(x=>`<tr><td>${x.date}</td><td class="${x.direction==='LONG'?'long':'short'}">${x.direction}</td>${names.map(a=>`<td>${num(x[a.toLowerCase()+'_close'])}</td>`).join('')}${names.map(a=>{let r=x[a.toLowerCase()+'_ret'];return `<td class="${r>0?'ok':r<0?'bad':''}">${pct(r)}</td>`}).join('')}<td class="${x.allavg>0?'ok':x.allavg<0?'bad':''}">${pct(x.allavg)}</td></tr>`).join('');
+if(!count)$('msg').textContent='لا توجد إشارات بهذه الشروط. جربي مؤشرًا آخر أو «الأربعة في نفس الاتجاه (حالة)»؛ هذا تعريف مختلف عن حدوث 4 تقاطعات في نفس اليوم.';
+}
+function csvExport(){if(!state){$('msg').textContent='احسبي الإشارات أولاً';return}let rows=rowsWithReturns(),keys=['date','direction',...names.map(a=>a.toLowerCase()+'_close'),...names.map(a=>a.toLowerCase()+'_ret'),'allavg'];keys.push(...names.map(a=>a.toLowerCase()+'_hit'));let lines=[keys.join(','),...rows.map(x=>keys.map(k=>x[k]===null?'':x[k]).join(','))];let blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`METALS_${state.ind}_${getHorizon()}D_${state.mode}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+$('indicator').addEventListener('change',()=>{renderParams();state=null;$('msg').textContent='اختاري الإعدادات واضغطي احسب الإشارات'});
+$('scan').onclick=()=>{try{findSignals()}catch(e){$('msg').textContent='خطأ: '+e.message;console.error(e)}};
+$('horizon').addEventListener('change',()=>{try{updateTable()}catch(e){$('msg').textContent='خطأ: '+e.message}});
+$('direction').addEventListener('change',()=>{if(state)try{findSignals()}catch(e){$('msg').textContent=e.message}});
+$('mode').addEventListener('change',()=>{if(state)try{findSignals()}catch(e){$('msg').textContent=e.message}});
+$('csv').onclick=()=>{try{csvExport()}catch(e){$('msg').textContent=e.message}};
+for(let th of document.querySelectorAll('th[data-sort]'))th.addEventListener('click',()=>{let key=th.dataset.sort;order.dir=(order.key===key)?-order.dir:-1;order.key=key;updateTable()});
+renderParams();findSignals();
+</script></body></html>

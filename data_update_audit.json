@@ -1,0 +1,32 @@
+[
+  {
+    "symbol": "GOLD",
+    "source": "D:\\egx\\metals_daily_4000\\data\\GOLD_1D.csv",
+    "output": "D:\\egx\\gold_local\\daily_rs_dates_test\\data\\GOLD_1D.csv",
+    "old_last": "2026-10-28",
+    "new_last": "2026-10-29",
+    "date_shift": 1,
+    "matching_ohlc": 149,
+    "rows": 3987
+  },
+  {
+    "symbol": "SILVER",
+    "source": "D:\\egx\\metals_daily_4000\\data\\SILVER_1D.csv",
+    "output": "D:\\egx\\gold_local\\daily_rs_dates_test\\data\\SILVER_1D.csv",
+    "old_last": "2026-10-28",
+    "new_last": "2026-10-29",
+    "date_shift": 1,
+    "matching_ohlc": 149,
+    "rows": 3987
+  },
+  {
+    "symbol": "PALLADIUM",
+    "source": "D:\\egx\\metals_all4_daily\\data\\PALLADIUM_1D.csv",
+    "output": "D:\\egx\\gold_local\\daily_rs_dates_test\\data\\PALLADIUM_1D.csv",
+    "old_last": "2026-10-28",
+    "new_last": "2026-10-29",
+    "date_shift": 1,
+    "matching_ohlc": 149,
+    "rows": 3987
+  }
+]

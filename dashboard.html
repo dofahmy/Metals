@@ -1,0 +1,385 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Trading Similarity — بحث الأنماط التاريخية</title><style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#0b1628;color:#edf3ff;font:14px Tahoma,Arial}main{max-width:1650px;margin:auto;padding:22px}h1{color:#f4cb70;font-size:26px}.sub,.note{color:#a8bdd3;line-height:1.9}.panel{background:#192b43;border:1px solid #36536f;border-radius:13px;padding:17px;margin:14px 0}.ctrls{display:flex;flex-wrap:wrap;gap:13px;align-items:end}.control{display:flex;flex-direction:column;gap:7px}label{font-size:12px;color:#c0d0e1}input,select,button{background:#102238;border:1px solid #42607c;color:#fff;border-radius:8px;padding:10px;font:inherit}input[type=number]{width:112px}button{cursor:pointer;background:#24759a}button:hover{background:#328cb5}button:disabled{background:#37485a;color:#8b9bab;opacity:.48;cursor:not-allowed;border-color:#536073}.criteria{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}.criterion{border:1px solid #3d5874;border-radius:10px;background:#11243a;padding:12px;display:flex;flex-direction:column;gap:6px}.criterion label{font-size:14px;color:#f1f6ff;display:flex;align-items:center;gap:8px}.criterion small{color:#a4bbd2;line-height:1.6}.criterion input{accent-color:#59b3df}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:14px 0}.card{background:#1a304b;border:1px solid #345371;border-radius:10px;padding:14px}.card small{color:#b4cadc}.card strong{display:block;color:#f5cb6d;font-size:23px;margin-top:6px}.scroll{overflow:auto;max-height:65vh;border:1px solid #3c5674;border-radius:10px}table{width:100%;border-collapse:collapse;white-space:nowrap;font-size:12px}th{position:sticky;top:0;background:#2a4868;z-index:2;padding:12px}td{padding:10px;border-bottom:1px solid #34516b;text-align:center}tr:nth-child(even){background:#17283e}.up{color:#63e2b5}.down{color:#ff8994}.warn{color:#f7d078}.muted{color:#adc2d4}svg{overflow:visible}.reason{white-space:normal;min-width:250px;max-width:400px;text-align:right;line-height:1.8}.badge{padding:3px 6px;border-radius:5px;background:#254964}.rowtitle{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.spark{width:130px;height:37px}.message{padding:8px 0}.signal-line{font-size:24px;font-weight:bold;color:#f5cb6d;direction:ltr;text-align:center;letter-spacing:.2px;white-space:normal;margin:17px 0}.signal-line:empty{display:none}.rr-strong{color:#61e9ae;text-shadow:0 0 8px rgba(63,209,150,.16)}.rr-other{color:#f5cb6d}.rr-strong,.rr-other{display:block;margin:6px 0}
+</style></head><body><main>
+<h1>Screen for a Signal — البحث عن إشارة</h1>
+<div class="panel ctrls" style="display:none" id="legacy-controls"><div class="control"><label>الرمز</label><select id="legacy-symbol"></select></div><div class="control"><label>عدد جلسات النمط</label><input id="n" type="number" value="7" min="3" max="90"></div><div class="control"><label>الحركة التالية بعد (جلسات)</label><input id="ahead" type="number" value="2" min="1" max="250"></div><div class="control"><label>حد التشابه الكلي %</label><input id="threshold" type="number" value="80" min="0" max="100"></div><div class="control"><label>عدد الشروط المطلوب تحققها</label><input id="minpass" type="number" value="3" min="1" max="7"></div><div class="control"><label>آخر يوم مرجعي (اختياري)</label><input id="asof" type="date"></div><label><input id="separate" type="checkbox" checked> استبعاد الفترات المتداخلة</label><button id="run">ابحث عن التشابه</button><button id="csv">تصدير CSV</button></div>
+<div class="panel" style="display:none"><div class="rowtitle"><b>اختاري معايير المقارنة</b><span class="note" id="picked"></span></div><div class="criteria" id="criteria"></div><p class="note">كل معيار له درجة من 0 إلى 100، ويُحسب مستوفيًا عندما يبلغ <b>80%</b> (أو يطابق التصنيف في السياق). معايير الاتجاه تقارن لون جسم كل شمعة بدلاً من مقارنة إغلاقها بالإغلاق السابق. لتفادي أشكال لا تشبه المرجع اختاري «اتجاه كل جلسة» و«شكل الشموع» مع حد أعلى للتشابه، والقبول يتطلب <b>درجة التشابه الإجمالية</b> المطلوبة <b>وعدد الشروط المتحققة</b> المطلوب. الدرجة الإجمالية هي متوسط درجات المعايير المحددة بأوزان متساوية. يمكنك تخفيض عدد الشروط بدون تغيير بقية المعايير.</p></div>
+<section class="panel" id="screen-panel"><h2>Screen for a Signal</h2><div class="ctrls"><div class="control"><label>الفريم</label><select id="timeframe"><option value="1D">يومي 1D</option><option value="1H">كل ساعة 1H</option></select></div><div class="control"><label>الرمز</label><select id="sym"><option value="GOLD">الذهب XAUUSD</option><option value="SILVER">الفضة XAGUSD</option><option value="BOTH">Both — الذهب والفضة</option></select></div><div class="control" id="target-control"><label>الهدف (%)</label><input id="screen-target" type="number" min="0.1" max="100" step="0.1" value="1.5"></div><div class="control"><label>نسبة الثقة في الإشارة (%)</label><input id="screen-threshold" type="number" min="0" max="100" value="80"></div><button id="screen-go">Screen for a Signal</button><button id="refresh-data" type="button" disabled>تحديث البيانات</button><span id="refresh-status" class="note" style="font-size:12px"></span></div><input type="hidden" id="screen-max-n" value="60"><input type="hidden" id="screen-minpass" value="4"><div id="screen-progress" class="note message"></div><div id="screen-summary" class="signal-line"></div><div id="both-details" class="note" style="text-align:center"></div></section>
+<div class="panel"><b>النمط المرجعي</b> <span id="refdates" class="note"></span><div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"><svg id="refchart" width="520" height="130" viewBox="0 0 520 130" style="max-width:100%"></svg></div></div>
+<div id="status" class="note message" style="display:none"></div><div id="summary" class="cards" style="display:none"></div>
+<h2>الفترات المقبولة ونتائج المستقبل</h2><div class="scroll"><table><thead><tr><th>من</th><th>إلى</th><th>نسبة التطابق</th><th>الشموع الحقيقية — نفس مقياس المرجع</th><th id="future-return-heading">العائد بعد جلستين</th><th>أقصى صعود</th><th>أقصى هبوط</th><th>تاريخ نهاية المستقبل</th></tr></thead><tbody id="rows"></tbody></table></div>
+
+</main><script>
+const FRAMES={"1D":__PRICE_DATA__,"1H":__HOURLY_DATA__};
+let DATA=FRAMES["1D"];
+const $=id=>document.getElementById(id);
+const names={EGX30:'EGX30 — المؤشر المصري',GOLD:'الذهب XAUUSD',SILVER:'الفضة XAGUSD',PLATINUM:'البلاتين XPTUSD',PALLADIUM:'البلاديوم XPDUSD',DBC:'DBC'};
+const defs=[
+['direction','اتجاه كل جلسة','تقارن صعود/هبوط الإغلاق لكل يوم داخل النمط'],
+['returns','نِسَب التغير اليومية','تقارن حجم مكسب/خسارة كل يوم بالنسبة إلى تذبذب المرجع'],
+['candles','شكل الشموع والظلال','تقارن جسم الشمعة ومكان الإغلاق والظلال العليا والسفلى'],
+['volatility','التذبذب ومدى الشموع','تقارن متوسط High−Low وتشتت التغيرات اليومية'],
+['turns','الانعكاسات داخل النمط','تقارن عدد تبدلات اتجاه الإغلاق عبر الأيام'],
+['drawdown','الصعود والهبوط الداخلي','تقارن أقصى تراجع وأقصى ارتفاع من نقاط سابقة'],
+['context','سياق الاتجاه قبل النمط','تقارن الموقع من SMA20/50/100 وميل المتوسطات وحركة 20 جلسة سابقة']
+];
+let shown=[];let allScored=[];
+// All symbol options stay available; hourly data can be fetched on first refresh.
+if(DATA.GOLD){$('sym').value='GOLD';}else if(DATA.SILVER){$('sym').value='SILVER';}
+$('criteria').innerHTML=defs.map(([id,title,help])=>`<div class="criterion"><label><input type="checkbox" class="feat" value="${id}" ${['direction','volatility','turns','drawdown'].includes(id)?'checked':''}> ${title}</label><small>${help}</small></div>`).join('');
+function selected(){return [...document.querySelectorAll('.feat:checked')].map(e=>e.value)}
+function updateCount(){const c=selected().length;$('minpass').max=Math.max(c,1);if(+$('minpass').value>c)$('minpass').value=Math.max(c,1);$('picked').textContent=`المحدد: ${c} من 7`;}
+document.querySelectorAll('.feat').forEach(e=>e.onchange=updateCount);updateCount();
+const pct=(a,b)=>a?100*(b/a-1):0, clamp=x=>Math.max(0,Math.min(100,x)), mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const std=a=>Math.sqrt(mean(a.map(x=>(x-mean(a))**2)));
+const scoreDiff=(a,b,tol)=>100*Math.exp(-Math.abs(a-b)/Math.max(.0001,tol));
+function returns(d,start,n){let r=[];for(let j=start;j<start+n;j++)r.push(pct(j===start?d[j].o:d[j-1].c,d[j].c));return r;}
+function cum(r){let p=1,out=[0];for(let x of r){p*=1+x/100;out.push((p-1)*100)}return out;}
+function extrema(path){let peak=path[0],trough=path[0],dd=0,ru=0;for(let x of path){dd=Math.max(dd,peak-x);ru=Math.max(ru,x-trough);peak=Math.max(peak,x);trough=Math.min(trough,x)}return {dd,ru}}
+function sma(d,end,n){if(end-n+1<0)return null;let t=0;for(let i=end-n+1;i<=end;i++)t+=d[i].c;return t/n}
+function context(d,end){const c=d[end].c,s20=sma(d,end,20),s50=sma(d,end,50),s100=sma(d,end,100),p50=sma(d,end-5,50),p100=sma(d,end-5,100);if([s20,s50,s100,p50,p100].some(x=>x===null))return null;return [c>s20?1:0,c>s50?1:0,c>s100?1:0,s50>p50?1:0,s100>p100?1:0,s50>s100?1:0,pct(d[end-20].c,c)];}
+function features(d,start,n){let r=returns(d,start,n),bars=d.slice(start,start+n),cp=cum(r),range=bars.map(x=>pct(x.c,x.h)-pct(x.c,x.l)),shapes=bars.map(x=>{let den=Math.max(.0000001,x.h-x.l);return [(x.c-x.o)/den,(x.h-Math.max(x.o,x.c))/den,(Math.min(x.o,x.c)-x.l)/den,(x.c-x.l)/den]});let turns=0,prev=0;for(let x of r){let sign=Math.sign(x);if(sign&&prev&&sign!==prev)turns++;if(sign)prev=sign;}
+return {r,bars,shapes,range,vol:std(r),turns,ext:extrema(cp),context:context(d,start-1),cp,final:pct(bars[0].o,bars[bars.length-1].c)};}
+function compare(ref,b,chosen){const out={};const scale=Math.max(.15,std(ref.r),Math.abs(mean(ref.r))*.5);let matches=0;for(let i=0;i<ref.r.length;i++){let a=Math.sign(ref.bars[i].c-ref.bars[i].o),c=Math.sign(b.bars[i].c-b.bars[i].o);if(a===c)matches++};out.direction=100*matches/ref.r.length;
+out.returns=mean(ref.r.map((v,i)=>scoreDiff(v,b.r[i],scale)));
+let candleGeometry=mean(ref.shapes.flatMap((v,i)=>v.map((x,j)=>scoreDiff(x,b.shapes[i][j],.32))));let pathShape=mean(ref.bars.map((v,i)=>scoreDiff(pct(ref.bars[0].o,v.c),pct(b.bars[0].o,b.bars[i].c),Math.max(.2,Math.abs(ref.final)*.25,ref.vol*.6))));out.candles=.55*candleGeometry+.45*pathShape;
+let vr=mean(ref.range),vb=mean(b.range);out.volatility=.55*scoreDiff(vr,vb,Math.max(.15,vr*.40))+.45*scoreDiff(ref.vol,b.vol,Math.max(.15,ref.vol*.45));
+out.turns=scoreDiff(ref.turns,b.turns,1.2);
+out.drawdown=.5*scoreDiff(ref.ext.dd,b.ext.dd,Math.max(.25,ref.ext.dd*.50))+.5*scoreDiff(ref.ext.ru,b.ext.ru,Math.max(.25,ref.ext.ru*.50));
+if(!ref.context||!b.context){out.context=0}else{let eq=0;for(let i=0;i<6;i++)if(ref.context[i]===b.context[i])eq++;out.context=.75*100*eq/6+.25*scoreDiff(ref.context[6],b.context[6],Math.max(1.0,Math.abs(ref.context[6])*.50));}
+for(let k of Object.keys(out))out[k]=clamp(out[k]);return {grades:out,overall:mean(chosen.map(k=>out[k])),passed:chosen.filter(k=>out[k]>=80).length};}
+// Real OHLC candlesticks. Shared vertical scale uses reference min/max pct from FIRST OPEN.
+let refScale={low:-2,high:2};
+function scaleOf(bars){const base=bars[0].o;const values=bars.flatMap(b=>[pct(base,b.h),pct(base,b.l)]);let lo=Math.min(...values),hi=Math.max(...values),pad=Math.max(.15,(hi-lo)*.12);return {low:lo-pad,high:hi+pad};}
+function candlesSvg(bars,w=150,h=45){if(!bars.length)return '';const base=bars[0].o,lo=refScale.low,hi=refScale.high,span=Math.max(.001,hi-lo),y=v=>(h-4)-(pct(base,v)-lo)/span*(h-8),step=w/bars.length,bw=Math.max(2,Math.min(15,step*.56));let output='';for(let i=0;i<bars.length;i++){const b=bars[i],x=(i+.5)*step,c=b.c>=b.o?'#47d6ad':'#fb6978',yo=y(b.o),yc=y(b.c),yt=y(b.h),yb=y(b.l);output+=`<line x1="${x.toFixed(2)}" y1="${yt.toFixed(2)}" x2="${x.toFixed(2)}" y2="${yb.toFixed(2)}" stroke="${c}" stroke-width="1.5"/><rect x="${(x-bw/2).toFixed(2)}" y="${Math.min(yo,yc).toFixed(2)}" width="${bw.toFixed(2)}" height="${Math.max(1,Math.abs(yc-yo)).toFixed(2)}" fill="${c}"/>`; }return output;}
+const fmt=x=>(x===null||x===undefined||!Number.isFinite(x))?'—':(x>0?'+':'')+x.toFixed(2)+'%',grade=x=>x.toFixed(1)+'%',cls=x=>x===null?'muted':x>0?'up':x<0?'down':'muted';
+function card(label,value){return `<div class="card"><small>${label}</small><strong>${value}</strong></div>`}
+function run(onlyStarts=null){let key=$('sym').value,d=DATA[key],n=Math.floor(+$('n').value),ahead=Math.floor(+$('ahead').value),th=+$('threshold').value,chosen=selected(),minimum=Math.floor(+$('minpass').value);if(!chosen.length||minimum<1||minimum>chosen.length||n<3||n>90||ahead<1||ahead>250||th<0||th>100){alert('راجعي الإعدادات وعدد الشروط المختارة');return}
+let end=d.length-1;if($('asof').value)end=d.findLastIndex(x=>x.d<=$('asof').value);let rs=end-n+1;if(rs<101){$('status').textContent='الفترة المرجعية غير متاحة أو البيانات قبلها غير كافية لحساب SMA100';return}
+// PHASE 1: match patterns using their own OHLC history only. Never use ahead in selection.
+let ref=features(d,rs,n),lastAllowed=rs-1,rows=[];
+for(let start=101;start+n-1<=lastAllowed;start++){
+  let e=start+n-1,f=features(d,start,n),sc=compare(ref,f,chosen);
+  if(sc.overall+1e-10<th||sc.passed<minimum)continue;
+  rows.push({start,e,from:d[start].d,to:d[e].d,r:f.r,bars:f.bars,...sc});
+}
+let before=rows.length;
+if($('separate').checked){
+  // Patterns overlap only when their pattern windows overlap; future is excluded.
+  rows.sort((a,b)=>b.overall-a.overall||a.start-b.start);
+  let accepted=[];
+  for(let c of rows){
+    if(!accepted.some(t=>!(c.e<t.start||c.start>t.e)))accepted.push(c);
+  }
+  rows=accepted;
+}
+// PHASE 2: measure the future AFTER matches have been selected. Missing future = null.
+for(let x of rows){
+  let available=Math.max(0,Math.min(ahead,d.length-1-x.e));
+  let future=d.slice(x.e+1,x.e+1+available),base=d[x.e].c;
+  x.complete=available===ahead;
+  x.available=available;
+  x.finalDate=available?d[x.e+available].d:'—';
+  x.ret=x.complete?pct(base,d[x.e+ahead].c):null;
+  x.up=x.complete?pct(base,Math.max(...future.map(v=>v.h))):null;
+  x.down=x.complete?pct(base,Math.min(...future.map(v=>v.l))):null;
+}
+rows.sort((a,b)=>b.overall-a.overall);if(onlyStarts!==null){const permitted=new Set(onlyStarts);rows=rows.filter(x=>permitted.has(x.start));}shown=rows;
+$('future-return-heading').textContent='العائد بعد '+ahead+' جلسات';
+let measured=rows.filter(x=>x.complete),rising=measured.filter(x=>x.ret>0).length,avg=k=>measured.length?mean(measured.map(x=>x[k])):NaN;
+$('status').textContent=`${names[key]||key}: ${d.length.toLocaleString()} جلسة | المرجع ${d[rs].d} إلى ${d[end].d} | قبل استبعاد التداخل: ${before} | المعروض: ${rows.length} | نتائج مستقبل مكتملة: ${measured.length} | المعايير المطلوبة: ${minimum}/${chosen.length}`;
+$('refdates').textContent=`${d[rs].d} → ${d[end].d} | ${n} شموع حقيقية | تغير افتتاح الأولى إلى إغلاق الأخيرة ${fmt(ref.final)} | آخر إغلاق ${d[end].c}`;
+refScale=scaleOf(ref.bars);$('refchart').innerHTML=candlesSvg(ref.bars,510,120);
+$('summary').innerHTML=card('الحالات المقبولة',rows.length)+card('نسبة الصعود بعد '+ahead+' جلسات',measured.length?(100*rising/measured.length).toFixed(1)+'%':'—')+card('متوسط إغلاق المستقبل',fmt(avg('ret')))+card('متوسط أقصى صعود',fmt(avg('up')))+card('متوسط أقصى هبوط',fmt(avg('down')));
+$('rows').innerHTML=rows.map(x=>{return `<tr><td>${x.from}</td><td>${x.to}</td><td class="warn">${grade(x.overall)}</td><td><svg class="spark" viewBox="0 0 150 35">${candlesSvg(x.bars,150,35)}</svg></td><td class="${cls(x.ret)}">${fmt(x.ret)}</td><td class="${cls(x.up)}">${fmt(x.up)}</td><td class="${cls(x.down)}">${fmt(x.down)}</td><td>${x.complete?x.finalDate:`غير مكتمل (${x.available}/${ahead})`}</td></tr>`}).join('')||'<tr><td colspan="8">لا توجد حالات مستوفية. جربي تقليل عدد الشروط أو درجة التشابه المطلوبة.</td></tr>';
+}
+function csv(){if(!shown.length){alert('لا توجد نتائج للتصدير');return}let keys=selected(),head=['from','to','future_end','total_similarity_pct','passed','selected','future_return_pct','max_up_pct','max_down_pct',...keys.map(x=>x+'_pct')],lines=[head.join(',')];for(let x of shown)lines.push([x.from,x.to,x.finalDate,x.overall.toFixed(3),x.passed,keys.length,x.ret===null?'':x.ret.toFixed(4),x.up===null?'':x.up.toFixed(4),x.down===null?'':x.down.toFixed(4),...keys.map(k=>x.grades[k].toFixed(3))].join(','));let url=URL.createObjectURL(new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='TRADING_SIMILARITY_'+$('sym').value+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),2000)}
+
+// BOTH examines only the same historical criterion set and pattern length for both metals.
+// Targets are stepped in integer basis points (0.01%), avoiding floating-point drift.
+// The maximum target is limited by actual observed post-pattern excursions, not an arbitrary large loop.
+async function scanBoth(){
+ const btn=$('screen-go'), gold=DATA.GOLD,silver=DATA.SILVER;
+ if(btn.disabled)return;
+ const threshold=+$('screen-threshold').value, ahead=Math.floor(+$('ahead').value), maxN=60;
+ if(!gold||!silver){$('screen-summary').textContent='NO SIGNAL';$('screen-progress').textContent='لا توجد بيانات مكتملة للذهب والفضة.';return}
+ btn.disabled=true;screenHasRun=true;
+ const version=screenVersion;
+ $('screen-summary').textContent='';$('both-details').textContent='';
+ $('screen-progress').textContent='جارٍ فحص توافق الذهب والفضة...';
+ const keysAll=defs.map(x=>x[0]), cache={};
+ function allCandidates(symbol,n){
+   const cacheKey=symbol+':'+n;
+   if(cache[cacheKey])return cache[cacheKey];
+   const d=DATA[symbol],anchor=d.length-1,rs=anchor-n+1,ref=features(d,rs,n),r=[];
+   for(let start=101;start+n-1<rs;start++){
+     const end=start+n-1;
+     if(end+ahead>=rs)continue;
+     const f=features(d,start,n),c=compare(ref,f,keysAll),close=d[end].c;
+     const forward=d.slice(end+1,end+ahead+1);
+     r.push({start,end,ret:pct(close,d[end+ahead].c),
+       up:pct(close,Math.max(...forward.map(v=>v.h))),down:pct(close,Math.min(...forward.map(v=>v.l))),
+       from:d[start].d,to:d[end].d,grades:c.grades});
+   }
+   cache[cacheKey]=r;
+   return r;
+ }
+ function candidatesFor(symbol,n,keys){
+   const accepted=[];
+   for(const x of allCandidates(symbol,n)){
+     const arr=keys.map(k=>x.grades[k]),overall=mean(arr);
+     if(overall>=threshold&&arr.every(v=>v>=80))accepted.push({...x,overall});
+   }
+   return pickNonOverlapping(accepted,n);
+ }
+ function evaluate(rows){
+   if(rows.length!==4)return null;
+   const buy=rows.filter(x=>x.ret>0).length,sell=rows.filter(x=>x.ret<0).length;
+   if(Math.max(buy,sell)<3)return null;
+   const side=buy>=3?'BUY':'SELL';
+   return {rows,side,confidence:mean(rows.map(x=>x.overall)),avgReturn:mean(rows.map(x=>x.ret)),
+     adverse:Math.max(0,...rows.filter(x=>side==='BUY'?x.ret>0:x.ret<0).map(x=>side==='BUY'?Math.max(0,-x.down):Math.max(0,x.up)))};
+ }
+ function signalLine(sym,info,target){
+   const price=DATA[sym].at(-1).c,stop=Math.ceil((info.adverse-1e-9)*10)/10;
+   return `${info.side==='SELL'?'SHORT':'LONG'} ${sym==='GOLD'?'XAUUSD':'XAGUSD'} — ENTRY ${price.toFixed(2)} — TP ${(price*(1+(info.side==='BUY'?1:-1)*target/100)).toFixed(2)} — SL ${(price*(1+(info.side==='BUY'?-1:1)*stop/100)).toFixed(2)}`;
+ }
+ let best=null;
+ try{
+ for(const tier of [4,3,2]){
+  if(best)break;
+  const sets=subsetsOf(keysAll,tier).filter(x=>x.length===tier);
+  for(let n=5;n<=maxN;n++){
+   if(version!==screenVersion)return;
+   for(const keys of sets){
+    const g=evaluate(candidatesFor('GOLD',n,keys)),s=evaluate(candidatesFor('SILVER',n,keys));
+    if(!g||!s||g.side!==s.side)continue;
+    // Comparable confidence means a maximum 5 percentage-point difference.
+    if(Math.abs(g.confidence-s.confidence)>5)continue;
+    // Comparable realized outcomes mean same direction and within 1 percentage point.
+    if(Math.abs(g.avgReturn-s.avgReturn)>1)continue;
+    // Identify the largest common target reached by >= 3 of 4 matches in each metal.
+    const favorable=x=>x.side==='BUY'?x.rows.map(r=>r.up):x.rows.map(r=>-r.down);
+    const limit=Math.min([...favorable(g)].sort((a,b)=>b-a)[2],[...favorable(s)].sort((a,b)=>b-a)[2]);
+    const maxBasisPoints=Math.floor((limit+1e-9)*100);
+    if(maxBasisPoints<100)continue;
+    // Start at 1.00%, then evaluate every 0.01% up to the supported common target.
+    // All smaller targets automatically pass once a greater target passes.
+    let bp=100;
+    while(bp+1<=maxBasisPoints)bp+=1;
+    const target=bp/100;
+    const rank=Math.min(g.confidence,s.confidence)+tier*2+target*.2;
+    if(!best||rank>best.rank)best={g,s,n,keys,tier,target,rank};
+   }
+   if(n%5===0){$('screen-progress').textContent=`Both — فحص ${tier} شروط | نمط ${n}/${maxN}`;await screenYield()}
+  }
+ }
+ if(version!==screenVersion)return;
+ if(!best){$('screen-summary').textContent='NO SIGNAL';$('screen-progress').textContent='لم نجد توافقًا كافيًا في الاتجاه والعائد ونسبة التطابق بين المعدنين.';return}
+ // Compute R:R from the exact same entry, TP and SL shown in the signal.
+ const rrInfo=(sym,info,target)=>{
+   const price=DATA[sym].at(-1).c;
+   const stopPct=Math.ceil((info.adverse-1e-9)*10)/10;
+   const tp=Number((price*(1+(info.side==='BUY'?1:-1)*target/100)).toFixed(2));
+   const sl=Number((price*(1+(info.side==='BUY'?-1:1)*stopPct/100)).toFixed(2));
+   const entry=Number(price.toFixed(2));
+   const reward=Math.abs(tp-entry),risk=Math.abs(sl-entry);
+   return {line:signalLine(sym,info,target),rr:risk>0?reward/risk:null};
+ };
+ const goldRR=rrInfo('GOLD',best.g,best.target),silverRR=rrInfo('SILVER',best.s,best.target);
+ const winner=(goldRR.rr===null&&silverRR.rr===null)?null:
+   (goldRR.rr===null?'SILVER':silverRR.rr===null?'GOLD':goldRR.rr>silverRR.rr?'GOLD':silverRR.rr>goldRR.rr?'SILVER':null);
+ const lineWithRR=(sym,item)=>{
+   const label=item.rr===null?'R:R N/A':`R:R 1:${item.rr.toFixed(2)}`;
+   const cls=sym===winner?'rr-strong':'rr-other';
+   return `<span class="${cls}">${item.line} — ${label}</span>`;
+ };
+ $('screen-summary').innerHTML=lineWithRR('GOLD',goldRR)+lineWithRR('SILVER',silverRR);
+ $('screen-summary').style.whiteSpace='normal';
+ $('both-details').textContent=`الهدف المشترك ${best.target.toFixed(2)}% | نمط ${best.n} جلسة | التطابق: ذهب ${best.g.confidence.toFixed(1)}%، فضة ${best.s.confidence.toFixed(1)}%`;
+ // Both shows its own sourced rows, not an unrelated single-metal table.
+ const data=[];
+ for(const [sym,info] of [['GOLD',best.g],['SILVER',best.s]])for(const x of info.rows)data.push({sym, ...x});
+ $('refdates').textContent=`Both — الذهب والفضة | ${best.n} جلسة`;
+ $('refchart').innerHTML='';
+ $('future-return-heading').textContent=`العائد بعد ${ahead} جلسات`;
+ const table=$('rows');
+ table.innerHTML=data.map(x=>`<tr><td>${x.sym==='GOLD'?'XAUUSD':'XAGUSD'} | ${x.from}</td><td>${x.to}</td><td class="warn">${x.overall.toFixed(1)}%</td><td>—</td><td class="${cls(x.ret)}">${fmt(x.ret)}</td><td class="${cls(x.up)}">${fmt(x.up)}</td><td class="${cls(x.down)}">${fmt(x.down)}</td><td>${DATA[x.sym][x.end+ahead].d}</td></tr>`).join('');
+ $('screen-progress').textContent='';
+ }catch(e){$('screen-summary').textContent='NO SIGNAL';$('screen-progress').textContent='خطأ أثناء البحث: '+e.message;console.error(e)}finally{btn.disabled=false;if(screenQueued||version!==screenVersion){screenQueued=false;screenSignal();}}
+}
+
+// Signal screen reuses exactly the SAME pattern matcher and same outcome horizon as
+// the ordinary search.  No secondary target-first or train/test ranking engine.
+const screenYield=()=>new Promise(resolve=>setTimeout(resolve,0));
+let screenHasRun=false,screenQueued=false,screenVersion=0;
+function invalidateScreen(){
+  screenVersion++;
+  $('screen-summary').textContent='';
+  $('screen-progress').textContent='الإعدادات تغيّرت — نتائج الإشارة السابقة اتلغت. جارٍ إعادة فحص الباترنات...';
+  if($('screen-go').disabled){screenQueued=true;return;}
+  if(screenHasRun)screenSignal();else $('screen-progress').textContent='الإعدادات تغيّرت — اضغطي Screen for a Signal لبدء البحث.';
+}
+
+function subsetsOf(ids,minCount){const result=[];function gen(i,arr){if(i===ids.length){if(arr.length>=minCount)result.push(arr.slice());return;}arr.push(ids[i]);gen(i+1,arr);arr.pop();gen(i+1,arr)}gen(0,[]);return result;}
+function pickNonOverlapping(candidates,n){
+  candidates.sort((a,b)=>b.overall-a.overall||a.start-b.start);
+  const chosen=[];
+  for(const x of candidates){if(chosen.every(y=>x.end<y.start||x.start>y.end))chosen.push(x);if(chosen.length===4)break;}
+  return chosen;
+}
+async function screenSignal(){
+ if($('sym').value==='BOTH'){if(!DATA.GOLD||!DATA.SILVER){$('screen-summary').textContent='بيانات الساعة غير محمّلة — اضغطي تحديث البيانات';return;}return scanBoth();}
+ $('both-details').textContent='';$('screen-summary').style.whiteSpace='normal';
+ const button=$('screen-go'); if(button.disabled)return;
+ const symbol=$('sym').value,d=DATA[symbol],maxN=Math.floor(+$('screen-max-n').value),target=+$('screen-target').value,
+  minPass=Math.floor(+$('screen-minpass').value),threshold=+$('screen-threshold').value,ahead=Math.floor(+$('ahead').value);
+ let anchor=d?d.length-1:-1;if(d&&$('asof').value)anchor=d.findLastIndex(x=>x.d<=$('asof').value);
+ if(!d){$('screen-summary').textContent='بيانات الفريم غير متاحة — اضغطي تحديث البيانات';return;}if(maxN<5||maxN>60||target<=0||target>100||minPass<2||minPass>7||threshold<0||threshold>100||ahead<1||ahead>250||anchor<220){alert('راجعي إعدادات البحث');return;}
+ button.disabled=true;screenHasRun=true; const version=screenVersion; $('screen-summary').textContent='';$('screen-progress').textContent='جارٍ إعادة حساب التشابه وفحص الهدف '+target+'%...';
+ try{
+   const pick=(rows,n,keys)=>{
+     if(rows.length<4)return null;
+     const top=pickNonOverlapping(rows.slice(),n);
+     if(top.length!==4)return null;
+     const buy=top.filter(x=>x.ret>0).length,sell=top.filter(x=>x.ret<0).length;
+     if(Math.max(buy,sell)<3)return null;
+     const side=buy>=3?'BUY':'SELL';
+     const supporting=top.filter(x=>side==='BUY'?x.ret>0:x.ret<0);
+     const avgsim=mean(top.map(x=>x.overall));
+     // Target is part of the screening: assess whether the selected side
+     // actually touched the requested level during the SAME outcome window.
+     // Never change the historical pattern matching itself based on outcomes.
+     const hits=top.filter(x=>side==='SELL'?x.down<=-target:x.up>=target).length;
+     const supportHits=supporting.filter(x=>side==='SELL'?x.down<=-target:x.up>=target).length;
+     // The four best matches must agree directionally and a majority must
+     // reach the requested target; otherwise no qualifying signal.
+     if(hits<3||supportHits<3)return null;
+     return {n,keys,top,side,supporting,hits,rank:avgsim+hits*8+(Math.max(buy,sell)===4?2:0)};
+   };
+   let best=null;
+   const allCriteria=defs.map(x=>x[0]);
+   // Strict priority: first search for 4 matching criteria; if none works,
+   // retry 3; finally 2. Never select a lower-tier match while a higher-tier
+   // qualifying setup exists.
+   for(const tier of [4,3,2]){
+     if(best)break;
+     $('screen-progress').textContent=`جاري فحص الباترنات التي تحقق ${tier} شروط...`;
+     // First check the existing visible pattern with the same algorithm.
+     run();
+     const currentN=Math.floor(+$('n').value),currentKeys=selected(),refStart=anchor-currentN+1;
+     if(currentN>=5&&currentN<=maxN&&currentKeys.length>=tier){
+       const visible=shown.filter(x=>x.complete&&x.e+ahead<refStart&&x.overall>=threshold&&x.passed>=tier)
+          .map(x=>({...x,start:x.start,end:x.e}));
+       best=pick(visible,currentN,currentKeys);
+     }
+     if(best)break;
+     const groups=subsetsOf(allCriteria,tier).filter(g=>g.length===tier);
+     for(let n=5;n<=maxN;n++){
+       const rs=anchor-n+1;if(rs<105)break;
+       const ref=features(d,rs,n),candidates=[];
+       for(let start=101;start+n-1<rs;start++){
+         const end=start+n-1;if(end+ahead>=rs)continue;
+         const f=features(d,start,n),c=compare(ref,f,allCriteria),base=d[end].c;
+         candidates.push({start,end,grades:c.grades,ret:pct(base,d[end+ahead].c),
+           up:pct(base,Math.max(...d.slice(end+1,end+ahead+1).map(x=>x.h))),
+           down:pct(base,Math.min(...d.slice(end+1,end+ahead+1).map(x=>x.l)))});
+       }
+       for(const keys of groups){
+         const matches=[];
+         for(const x of candidates){const arr=keys.map(k=>x.grades[k]),overall=mean(arr);
+           if(overall>=threshold&&arr.filter(g=>g>=80).length>=tier)matches.push({...x,overall,passed:tier});
+         }
+         const candidate=pick(matches,n,keys);
+         if(candidate&&(!best||candidate.rank>best.rank+1e-9||(Math.abs(candidate.rank-best.rank)<1e-9&&n<best.n)))best=candidate;
+       }
+       if(version!==screenVersion){screenQueued=true;return;}
+       if(n%4===0){$('screen-progress').textContent=`فحص ${tier} شروط: ${n} من ${maxN} جلسة`;await screenYield();}
+     }
+   }
+   if(!best){
+     $('screen-summary').textContent='NO SIGNAL';
+     $('screen-progress').textContent='لا توجد 4 حالات مستقلة، منها 3 متفقة على الاتجاه ووصلت للتارجت المحدد داخل فترة القياس.';
+     return;
+   }
+   // Synchronize all ordinary-search controls, the reference chart, and exactly
+   // the four historical rows used for the actual signal.
+   $('n').value=best.n;
+   $('threshold').value=threshold;
+   $('minpass').value=best.keys.length;
+   document.querySelectorAll('.feat').forEach(c=>{c.checked=best.keys.includes(c.value)});
+   updateCount();
+   const sourceStarts=best.top.map(x=>x.start);
+   run(sourceStarts);
+   // The same four cases MUST be visible, else do not publish a signal.
+   if(shown.length!==4||sourceStarts.some(x=>!shown.some(r=>r.start===x))){
+     $('screen-summary').textContent='NO SIGNAL';
+     $('screen-progress').textContent='تعذّر تأكيد تطابق جدول الحالات مع الإشارة.';
+     return;
+   }
+   const sides=shown.map(x=>Math.sign(x.ret));
+   const longCount=sides.filter(x=>x>0).length,shortCount=sides.filter(x=>x<0).length;
+   if(Math.max(longCount,shortCount)<3){$('screen-summary').textContent='NO SIGNAL';return;}
+   const side=shortCount>=3?'SELL':'BUY';
+   const support=shown.filter(x=>side==='SELL'?x.ret<0:x.ret>0);
+   const adverse=Math.max(0,...support.map(x=>side==='SELL'?Math.max(0,x.up):Math.max(0,-x.down)));
+   // For example 1.34% adverse becomes 1.4%, with small floating point tolerance.
+   const stopPct=Math.ceil((adverse-1e-9)*10)/10;
+   const entry=d[anchor].c,tp=entry*(side==='SELL'?1-target/100:1+target/100),
+     sl=entry*(side==='SELL'?1+stopPct/100:1-stopPct/100);
+   const ticker={GOLD:'XAUUSD',SILVER:'XAGUSD',PLATINUM:'XPTUSD',PALLADIUM:'XPDUSD',EGX30:'EGX30',DBC:'DBC'}[symbol]||symbol;
+   $('screen-summary').textContent=`${side==='SELL'?'SHORT':'LONG'} ${ticker} — ENTRY ${entry.toFixed(2)} — TP ${tp.toFixed(2)} — SL ${sl.toFixed(2)}`;
+   $('screen-progress').textContent='';
+ }catch(e){$('screen-summary').textContent='NO SIGNAL';$('screen-progress').textContent='خطأ: '+e.message;console.error(e)}finally{button.disabled=false;if(screenQueued||version!==screenVersion){screenQueued=false;screenSignal();}}
+}
+$('screen-go').onclick=screenSignal;
+// Changing TP must re-run target-qualified screening, NEVER just recalculate TP.
+for(const id of ['screen-target','screen-threshold']){
+  $(id).addEventListener('change',invalidateScreen);
+  if(id==='screen-target')$(id).addEventListener('input',()=>{
+    $('screen-summary').textContent='';
+    $('screen-progress').textContent='تارجت جديد — اضغطي خارج الخانة لإعادة الفحص تلقائيًا';
+  });
+}
+$('sym').addEventListener('change',()=>{document.getElementById('target-control').style.display=$('sym').value==='BOTH'?'none':'';invalidateScreen()});
+
+
+$('run').onclick=run;$('csv').onclick=csv;run();
+$('timeframe').addEventListener('change',()=>{DATA=FRAMES[$('timeframe').value]||{};shown=[];allScored=[];$('screen-summary').textContent='';$('both-details').textContent='';$('rows').innerHTML='';$('refchart').innerHTML='';$('refdates').textContent='';screenHasRun=false;refreshStatus();});
+
+// Local refresh requires the same-origin dashboard server (launched by --open).
+// file:// reports cannot run local Python commands; button remains disabled there.
+let refreshing = false;
+async function refreshStatus(){
+ const btn = document.getElementById('refresh-data'), info = document.getElementById('refresh-status');
+ if(!btn || refreshing) return;
+ if(location.protocol !== 'http:' || location.hostname !== '127.0.0.1'){
+   btn.disabled = true; info.textContent = 'للتحديث من الصفحة شغّلي py pattern_matcher.py --open'; return;
+ }
+ const key = document.getElementById('sym').value;
+ if(key==='BOTH'){const r=await fetch('/api/status?timeframe='+$('timeframe').value,{cache:'no-store'});const sy=(await r.json()).symbols;btn.disabled=!(sy.GOLD.needs_refresh||sy.SILVER.needs_refresh);info.textContent=btn.disabled?'البيانات محدثة':'تحديث متاح';return;}
+ try{
+   const r = await fetch('/api/status?timeframe='+$('timeframe').value,{cache:'no-store'}); if(!r.ok) throw Error('status');
+   const s = (await r.json()).symbols[key];
+   btn.disabled = !s.needs_refresh;
+   info.textContent = s.needs_refresh ? `تحديث متاح — آخر بيانات ${s.latest||'غير متاحة'}` : `البيانات محدثة — ${s.latest}`;
+ }catch(e){btn.disabled=true;info.textContent='تعذّر فحص تحديث البيانات';}
+}
+async function performRefresh(){
+ const btn=document.getElementById('refresh-data'),info=document.getElementById('refresh-status');
+ if(btn.disabled || refreshing)return;
+ refreshing=true; btn.disabled=true;info.textContent='جارٍ تحديث الأسعار والتحقق منها...';
+ try{
+   const symbol=document.getElementById('sym').value;
+   const r=await fetch('/api/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol,timeframe:$('timeframe').value})});
+   const result=await r.json();
+   if(result.updated){info.textContent='تم تحديث البيانات';location.reload();return;}
+   info.textContent = result.already_current ? 'البيانات محدثة' : 'التحديث لم يكتمل — راجعي تفاصيل الخطأ';
+   if(!result.already_current) alert((result.error||'تعذر التحديث')+'\n'+(result.log||'').slice(-2500));
+ }catch(e){info.textContent='فشل الاتصال بخدمة التحديث';alert(String(e));}
+ finally{refreshing=false;refreshStatus();}
+}
+document.getElementById('refresh-data').addEventListener('click',performRefresh);
+document.getElementById('sym').addEventListener('change',refreshStatus);
+refreshStatus();
+</script></body></html>
