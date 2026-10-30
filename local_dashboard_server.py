@@ -94,7 +94,13 @@ class Handler(BaseHTTPRequestHandler):
             if not REPORT.is_file():
                 self.send(503, 'Report not generated; run pattern_matcher.py first.', 'text/plain; charset=utf-8')
             else:
-                self.send(200, REPORT.read_bytes(), 'text/html; charset=utf-8')
+                # The generated HTML may still contain the old localhost-only UI guard.
+                # Apply the fix at response time so existing GitHub templates/reports work.
+                html = REPORT.read_text(encoding='utf-8')
+                old_guard = "if(location.protocol !== 'http:' || location.hostname !== '127.0.0.1'){"
+                new_guard = "if(!['http:', 'https:'].includes(location.protocol)){"
+                html = html.replace(old_guard, new_guard)
+                self.send(200, html.encode('utf-8'), 'text/html; charset=utf-8')
         else:
             self.send(404, 'Not found', 'text/plain')
 
