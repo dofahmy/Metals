@@ -1,8 +1,18 @@
-Gold-only 1H backtest — 1–30 October 2026 (rolling 30 days to 30 October), thresholds 80,81,82, TP 1%.
-Upload the three Python files to the repo root: gold_hourly_backtest.py, fast_both_engine.py, both_hourly_backtest.py.
-Both backtest file is required for CSV loading and trade settlement utilities; it is NOT used to generate Both signals.
-Run: /app/.venv/bin/python -u gold_hourly_backtest.py
-Test: /app/.venv/bin/python -u gold_hourly_backtest.py --max-bars 20
-Output: /app/backtest_gold_1h/{GRID_RESULTS.csv,ALL_SIGNALS.csv,ALL_TRADES.csv,RUN_INFO.json}
-Original Both files and output are not overwritten. Do not use the old --max-bars 20 results as a full month.
-Notes: There is no Silver agreement in this gold-only test. 3 thresholds may repeat the same signal or trade. No spread/fees included. No claim of historical profitability without real Railway results.
+باك تست الذهب فقط - فريم الساعة - أكتوبر 2026
+الإعداد الافتراضي: هدف +3% وحد أدنى للثقة 70%.
+
+ارفعي الملفات الثلاثة إلى GitHub /app (النسخة من fast_both_engine.py تحافظ على سلوك Both القديم افتراضياً؛ فقط تسمح لباك تست الذهب بتمرير floor=70).
+بعد إعادة النشر شغلي:
+cd /app
+/app/.venv/bin/python -u gold_hourly_backtest.py
+
+النتائج الجديدة (بدون الكتابة فوق اختبار 1%):
+/app/backtest_gold_1h_tp3_conf70/GRID_RESULTS.csv
+/app/backtest_gold_1h_tp3_conf70/ALL_TRADES.csv
+/app/backtest_gold_1h_tp3_conf70/ALL_SIGNALS.csv
+
+تعريف الثقة: متوسط تطابق خصائص النمط المختارة، وليس احتمال تحقيق الربح.
+حتى يظهر شرط 70% بالفعل، الحد الأدنى لكل خاصية مختارة في هذا الاختبار هو 70 بدلاً من 80؛ وهذا تغيير مقصود عن شرط المحرك السابق.
+الاختبار يشترط أن تدعم 4 الحالات المرجعية التاريخية هدف 3% قبل إصدار الإشارة؛ ولذلك قد تكون الإشارات قليلة أو معدومة.
+أوقات النتائج UTC؛ هدف 3% يحسب من افتتاح الشمعة التالية؛ لا توجد مصاريف تداول.
+لا يُفترض أن تكون تواريخ/أسعار الخروج تقرير تنفيذ فعلي شامل الانزلاق.

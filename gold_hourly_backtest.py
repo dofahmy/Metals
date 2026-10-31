@@ -15,7 +15,7 @@ def scan_gold(engine,anchor,thresholds,max_n=60,min_target=1.0):
             if cand is None:continue
             for cols in COMBOS[tier]:
                 for th in sorted(active):
-                    p=_pick(cand,list(cols),th)
+                    p=_pick(cand,list(cols),th,feature_floor=min(80,th))
                     if p is None:continue
                     max_target=math.floor((p['favor']+1e-9)*100)/100
                     if max_target<min_target:continue
@@ -34,21 +34,23 @@ def write_csv(path,rows,fields):
         w=csv.DictWriter(f,fieldnames=fields);w.writeheader();w.writerows(rows)
 
 def main():
-    p=argparse.ArgumentParser(description='GOLD only 1H: confidence 80,81,82 and target 1%')
-    p.add_argument('--data',default='/app/data/GOLD_1H.csv');p.add_argument('--out',default='/app/backtest_gold_1h')
+    p=argparse.ArgumentParser(description='GOLD only 1H: configurable minimum confidence and target')
+    p.add_argument('--data',default='/app/data/GOLD_1H.csv');p.add_argument('--out',default='/app/backtest_gold_1h_tp3_conf70')
     p.add_argument('--end',default='2026-10-30');p.add_argument('--days',type=int,default=30)
     p.add_argument('--horizon',type=int,default=24);p.add_argument('--signal-ahead',type=int,default=2)
     p.add_argument('--max-n',type=int,default=60);p.add_argument('--max-bars',type=int,default=0)
-    p.add_argument('--stride',type=int,default=1);p.add_argument('--target',type=float,default=1.0)
+    p.add_argument('--stride',type=int,default=1);p.add_argument('--target',type=float,default=3.0)
+    p.add_argument('--min-confidence',type=int,default=70,help='Minimum confidence percent, 0..100')
     a=p.parse_args()
     if a.target<=0:raise ValueError('Target must be > 0')
+    if not 0<=a.min_confidence<=100:raise ValueError('Minimum confidence must be 0..100')
     data=read_csv(a.data);dates=[r['dt'] for r in data]
     end=dparse(a.end+'T23:59:59+00:00');start=end-timedelta(days=a.days)
     anchors=[i for i,t in enumerate(dates) if start<=t<=end and i>=220 and i+a.horizon<len(dates)][::max(1,a.stride)]
     if a.max_bars:anchors=anchors[:a.max_bars]
     if not anchors:raise SystemExit('No eligible anchors; need historical and future 1H bars')
     engine=Engine({'GOLD':data},a.signal_ahead)
-    thresholds=[80,81,82]; signals=[]; trades=[]; lookup={}
+    thresholds=[a.min_confidence]; signals=[]; trades=[]; lookup={}
     print('START GOLD_ONLY ANCHORS',len(anchors),'HISTORY',len(data),'THRESHOLDS',thresholds,'TARGET',a.target,flush=True)
     for k,i in enumerate(anchors,1):
         found=scan_gold(engine,i,thresholds,a.max_n,a.target)
@@ -77,7 +79,7 @@ def main():
         summary.append(dict(threshold=th,target_pct=a.target,trades=len(ts),wins=wins,losses=len(ts)-wins,win_rate_pct=round(100*wins/len(ts),2) if ts else 0,total_return_pct=round(sum(x['return_pct'] for x in ts),4),profit_factor=round(gross/loss,3) if loss else None,average_return_pct=round(avg([x['return_pct'] for x in ts]),4)))
     write_csv(out/'GRID_RESULTS.csv',summary,list(summary[0]))
     with (out/'RUN_INFO.json').open('w',encoding='utf-8') as f:
-        json.dump({'settings':vars(a),'anchors':len(anchors),'signals_rows':len(signals),'trades_rows':len(trades),'assumptions':['Gold only, no silver agreement required','Four non-overlapping historical matches, at least 3 same direction','Entry next hourly candle open','Stop based on historical adverse excursion','Target fixed percentage','No overlapping positions per threshold','Within-hour both TP and SL hit -> SL','Exit after 24 bars if neither TP nor SL','No spread, commission, slippage','Incomplete outcomes excluded']},f,indent=2)
+        json.dump({'settings':vars(a),'anchors':len(anchors),'signals_rows':len(signals),'trades_rows':len(trades),'assumptions':['Gold only, no silver agreement required','Four non-overlapping historical matches, at least 3 same direction','Each selected feature meets minimum confidence (capped at original 80 floor for thresholds above 80)','Entry next hourly candle open','Stop based on historical adverse excursion','Target fixed percentage','No overlapping positions per threshold','Within-hour both TP and SL hit -> SL','Exit after 24 bars if neither TP nor SL','No spread, commission, slippage','Incomplete outcomes excluded']},f,indent=2)
     print('SAVED',out,'GRID',len(summary),'SIGNALS',len(signals),'TRADES',len(trades),flush=True)
     print('RESULTS')
     for row in summary:print(row,flush=True)

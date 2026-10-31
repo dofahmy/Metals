@@ -99,12 +99,12 @@ def _nonoverlap(starts,ends,overall,n):
         if len(chosen)==4:break
     return chosen
 
-def _pick(cand,cols,threshold):
+def _pick(cand,cols,threshold,feature_floor=80):
     if cand is None:return None
     starts,ends,grades,rets,ups,downs=cand
     part=grades[:,cols]
     over=np.mean(part,axis=1)
-    ok=(over>=threshold)&np.all(part>=80,axis=1)
+    ok=(over>=threshold)&np.all(part>=feature_floor,axis=1)
     if np.count_nonzero(ok)<4:return None
     idx=np.flatnonzero(ok)
     selected=_nonoverlap(starts[idx],ends[idx],over[idx],0)
