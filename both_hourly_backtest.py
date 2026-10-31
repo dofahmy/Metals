@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Historical replay of BOTH hourly scanner for gold/silver. No outside packages needed.
 import argparse, csv, json, math, os, itertools, statistics
+from fast_both_engine import Engine, scan_fast
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
@@ -139,18 +140,21 @@ def main():
     anchors=anchors[::max(1,a.stride)];anchors=anchors[:a.max_bars] if a.max_bars else anchors
     if not anchors:raise SystemExit('No eligible test anchors. Need >=220 shared historical 1H bars before start and future bars after end. Download more hourly history.')
     targets=[float(x) for x in a.targets.split(',')];thresholds=list(range(80,100));signals=[];trades=[]
+    engine=Engine(shared,a.signal_ahead)
+    print('START', 'ANCHORS',len(anchors),'HISTORY',len(dates),'THRESHOLDS',len(thresholds),'TARGETS',len(targets),flush=True)
     for k,i in enumerate(anchors,1):
-        scans=scan(shared,i,thresholds,a.signal_ahead,a.max_n)
+        scans=scan_fast(engine,i,thresholds,a.max_n)
         for th,v in scans.items():
             if v and v['symbol']:
                 signals.append(dict(time=dates[i].isoformat(),threshold=th,**v))
-        if k%10==0:print('PROGRESS',k,'/',len(anchors),dates[i].isoformat(),flush=True)
+        if k==1 or k%5==0 or k==len(anchors):print('PROGRESS',k,'/',len(anchors),dates[i].isoformat(),'SIGNALS',len(signals),flush=True)
+    signal_map={(s['threshold'],s['time']):s for s in signals}
     # In each parameter test only one position is open at a time, selecting higher R:R metal.
     for th,target in itertools.product(thresholds,targets):
         busy=-1
         for i in anchors:
             if i<=busy:continue
-            v=next((s for s in signals if s['threshold']==th and s['time']==dates[i].isoformat()),None)
+            v=signal_map.get((th,dates[i].isoformat()))
             if not v or v['maximum_target']<target:continue
             sym=v['symbol'];result=settle(shared[sym],i+1,sym,v['side'],target,v['stop_pct'],a.horizon)
             if result is None:continue
