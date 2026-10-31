@@ -2,7 +2,7 @@
 """Local-only dashboard bridge. No public bind; refresh only via same-origin POST."""
 import json, subprocess, sys, threading, webbrowser, os, base64, hmac
 from urllib.parse import urlparse, parse_qs
-from datetime import datetime, timedelta, time as dtime
+from datetime import datetime, timedelta, time as dtime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -30,15 +30,39 @@ def last_expected_closed_date():
     return date.isoformat()
 
 
+def last_expected_closed_hour(now_utc=None):
+    """Most recent completed OANDA metals trading hour, as UTC bar-start.
+
+    Markets normally run Sunday 18:00 through Friday 17:00 New York.
+    Ignore weekend gaps so the refresh button does not demand nonexistent bars.
+    """
+    now = now_utc or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        raise ValueError('now_utc must be timezone-aware')
+    candidate = now.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0) - timedelta(hours=1)
+    ny = ZoneInfo('America/New_York')
+    for _ in range(200):
+        local = candidate.astimezone(ny)
+        weekday = local.weekday()  # Monday=0, Sunday=6
+        active = (weekday in (0, 1, 2, 3)
+                  or (weekday == 4 and local.hour < 17)
+                  or (weekday == 6 and local.hour >= 18))
+        if active:
+            return candidate.strftime('%Y-%m-%dT%H:%M:%SZ')
+        candidate -= timedelta(hours=1)
+    raise RuntimeError('Could not locate recent metals trading hour')
+
+
 def get_status(timeframe="1D"):
     try: source = json.loads(MANIFEST.read_text(encoding='utf-8'))
     except Exception: source = {}
     expected = last_expected_closed_date()
     if timeframe == '1H':
-        now=datetime.now(ZoneInfo('UTC')).replace(minute=0,second=0,microsecond=0)-timedelta(hours=2)
-        # Conservative freshness; market is closed over the weekend.
-        while now.weekday()==5 or (now.weekday()==6 and now.hour<22):now-=timedelta(hours=1)
-        expected=now.strftime('%Y-%m-%dT%H:%M:%SZ')
+        expected = last_expected_closed_hour()
+    else:
+        # OANDA daily GOLD/SILVER CSVs label the NY session OPEN date;
+        # manifest remains raw, while report displays the CLOSE date.
+        expected = (datetime.strptime(expected, '%Y-%m-%d') - timedelta(days=1)).strftime('%Y-%m-%d')
     symbols = {}
     for key in ('GOLD', 'SILVER'):
         latest = source.get(key, {}).get('last', '') if timeframe == '1D' else ''
