@@ -73,7 +73,17 @@ def get_status(timeframe="1D"):
                     import pandas as pd
                     latest=str(pd.read_csv(f,usecols=['datetime']).iloc[-1,0])
                 except Exception:latest=''
-        symbols[key] = {'latest': latest, 'expected': expected, 'needs_refresh': not latest or latest < expected}
+        # Match the 1D GOLD/SILVER report's close-date labels (+1 calendar day).
+        # Compare raw CSV/manifest dates to the raw expected date, without shifting
+        # refresh logic, and shift only the value shown beside the update button.
+        display_latest = latest
+        if timeframe == '1D' and latest:
+            try:
+                display_latest = (datetime.strptime(latest[:10], '%Y-%m-%d') + timedelta(days=1)).strftime('%Y-%m-%d')
+            except ValueError:
+                pass
+        symbols[key] = {'latest': display_latest, 'expected': expected,
+                        'needs_refresh': not latest or latest < expected}
     return {'symbols': symbols}
 
 
