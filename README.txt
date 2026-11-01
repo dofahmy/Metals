@@ -1,0 +1,1 @@
+Replace only /app/gold_web.py on Railway. Existing fingerprint modules and GOLD_1D.csv can stay unchanged. Restart gold_web.py on port 8092. Filter gap from/to includes both bounds; decimals accepted.
