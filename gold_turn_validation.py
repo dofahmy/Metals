@@ -137,8 +137,9 @@ def main():
   mt=cm(test.y,pred) if len(test) else dict(n=0,tp=0,fp=0,tn=0,fn=0,balanced_accuracy=np.nan,precision_reversal=np.nan,reversal_recall=np.nan,predicted_reversals=0)
   result.append(dict(indicator=f,signal_lag=a.lag,rule=sign,threshold=t,train_n=m['n'],train_balanced_accuracy=m['balanced_accuracy'],train_precision=m['precision_reversal'],train_recall=m['reversal_recall'],train_signals=m['predicted_reversals'],test_n=mt['n'],test_balanced_accuracy=mt['balanced_accuracy'],test_precision=mt['precision_reversal'],test_recall=mt['reversal_recall'],test_signals=mt['predicted_reversals'],test_tp=mt['tp'],test_fp=mt['fp'],test_tn=mt['tn'],test_fn=mt['fn']))
   if len(test):
-   preds.extend([dict(date=d,indicator=f,predicted_reversal=int(y),actual_label=lab) for d,y,lab in zip(usable.loc[test.index,'date'],pred,test.label)])
- ranked=pd.DataFrame(result).sort_values(['train_balanced_accuracy','train_precision'],ascending=False)
+   preds.extend([dict(date=d,indicator=f,predicted_reversal=int(y),actual_label=lab) for d,y,lab in zip(usable.loc[test.index,'date'],pred,usable.loc[test.index,'label'])])
+ ranked=pd.DataFrame(result)
+ if not ranked.empty: ranked=ranked.sort_values(['train_balanced_accuracy','train_precision'],ascending=False)
  ranked.to_csv(out/'indicator_thresholds_train_test.csv',index=False)
  pd.DataFrame(preds).to_csv(out/'test_predictions_by_indicator.csv',index=False)
  print('\nTop indicators selected by TRAIN only (TEST strictly held out):')
